@@ -1,0 +1,2169 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RED CHAT — Private messaging, made simple.</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Font Awesome 6 CDN for iconography -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            redchat: {
+              DEFAULT: '#FF1744',
+              hover: '#D50000',
+              accent: '#FF0033',
+              glow: 'rgba(255, 23, 68, 0.45)',
+              subtle: 'rgba(255, 23, 68, 0.12)',
+              dark: '#5a0011'
+            },
+            noir: {
+              950: '#000000',
+              900: '#050505',
+              850: '#0B0B0B',
+              800: '#121212',
+              750: '#1A1A1A',
+              700: '#242424',
+              600: '#333333',
+              500: '#4F4F4F'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          boxShadow: {
+            'red-glow': '0 0 20px -3px rgba(255, 23, 68, 0.5)',
+            'red-glow-lg': '0 0 35px 2px rgba(255, 23, 68, 0.65)',
+            'subtle-card': '0 8px 30px rgba(0, 0, 0, 0.9)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background-color: #000000;
+      color: #FFFFFF;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+      touch-action: manipulation;
+    }
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #050505;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242424;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #FF1744;
+    }
+    .glass-card {
+      background: rgba(11, 11, 11, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 23, 68, 0.16);
+    }
+    .chat-bubble-me {
+      background: linear-gradient(135deg, #FF1744 0%, #B70028 100%);
+      color: #FFFFFF;
+      box-shadow: 0 4px 16px rgba(255, 23, 68, 0.28);
+    }
+    .chat-bubble-them {
+      background: #121212;
+      color: #F3F4F6;
+      border: 1px solid #242424;
+    }
+    .status-ring {
+      background: conic-gradient(#FF1744, #FF5252, #FF1744);
+      padding: 2.5px;
+    }
+    @keyframes pulseAura {
+      0%, 100% { opacity: 0.6; transform: scale(1); }
+      50% { opacity: 0.9; transform: scale(1.03); }
+    }
+    .aura-animate {
+      animation: pulseAura 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+</head>
+
+<body class="bg-noir-950 text-white min-h-screen selection:bg-redchat selection:text-white flex flex-col justify-between select-none">
+
+  <!-- Interactive Toast Notification Shelf -->
+  <div id="toast-shelf" class="fixed top-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4 sm:px-0"></div>
+
+  <!-- Media Fullscreen Lightbox Modal -->
+  <div id="media-lightbox" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl hidden flex-col items-center justify-center p-4">
+    <div class="absolute top-4 right-6 flex items-center gap-4 z-10">
+      <a id="lightbox-download-btn" href="#" download="redchat_attachment" class="px-4 py-2 rounded-xl bg-noir-800 hover:bg-noir-750 text-white text-xs font-bold border border-noir-700 transition flex items-center gap-2">
+        <i class="fa-solid fa-download text-redchat"></i> Download
+      </a>
+      <button onclick="closeMediaLightbox()" class="w-10 h-10 rounded-full bg-noir-800 hover:bg-redchat text-white flex items-center justify-center transition border border-noir-700">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+    </div>
+    <div class="relative max-w-5xl max-h-[85vh] w-full flex items-center justify-center overflow-hidden">
+      <img id="lightbox-image" src="" alt="View Media" class="hidden max-h-[85vh] max-w-full rounded-2xl object-contain border border-redchat/30 shadow-red-glow">
+      <video id="lightbox-video" controls class="hidden max-h-[85vh] max-w-full rounded-2xl border border-redchat/30 shadow-red-glow bg-black"></video>
+    </div>
+  </div>
+
+  <!-- 24-Hour Status Fullscreen Viewer -->
+  <div id="status-viewer-modal" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl hidden flex-col items-center justify-center p-2 sm:p-4">
+    <div class="relative w-full max-w-md h-[90vh] bg-noir-900 rounded-3xl overflow-hidden border border-redchat/40 shadow-red-glow-lg flex flex-col justify-between">
+      <!-- Story Progress Bars -->
+      <div class="absolute top-3 left-3 right-3 z-20 flex gap-1.5">
+        <div class="h-1 bg-white/20 rounded-full flex-1 overflow-hidden">
+          <div id="status-progress-bar" class="h-full bg-redchat w-0 transition-all duration-100 ease-linear"></div>
+        </div>
+      </div>
+      <!-- Story Header -->
+      <div class="relative z-20 flex items-center justify-between p-4 pt-6 bg-gradient-to-b from-black/80 to-transparent">
+        <div class="flex items-center gap-3">
+          <img id="status-author-avatar" src="" alt="Avatar" class="w-10 h-10 rounded-full object-cover border-2 border-redchat">
+          <div>
+            <h4 id="status-author-name" class="text-sm font-bold text-white">Author</h4>
+            <p id="status-timestamp" class="text-[10px] text-gray-400 font-mono">Today</p>
+          </div>
+        </div>
+        <button onclick="closeStatusViewer()" class="w-8 h-8 rounded-full bg-black/60 text-white hover:text-redchat flex items-center justify-center text-sm">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <!-- Story Body -->
+      <div id="status-viewer-body" class="flex-1 flex items-center justify-center p-4 relative overflow-hidden">
+        <!-- Rendered dynamically -->
+      </div>
+      <!-- Story Caption -->
+      <div class="relative z-20 p-4 bg-gradient-to-t from-black/90 to-transparent text-center">
+        <p id="status-viewer-caption" class="text-xs sm:text-sm text-gray-200 font-medium"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase Credentials & Security Rules Modal -->
+  <div id="firebase-config-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="glass-card max-w-2xl w-full rounded-3xl border border-redchat/40 shadow-red-glow overflow-hidden max-h-[92vh] flex flex-col">
+      <div class="px-6 py-4 border-b border-noir-700 flex items-center justify-between bg-noir-900">
+        <div class="flex items-center gap-2.5">
+          <i class="fa-solid fa-fire text-redchat text-xl"></i>
+          <div>
+            <h3 class="text-sm font-extrabold text-white">Firebase Live Sync & Security Rules</h3>
+            <p class="text-[11px] text-gray-400">Connect to your real Firebase project and protect database records</p>
+          </div>
+        </div>
+        <button onclick="closeFirebaseConfigModal()" class="text-gray-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-4 overflow-y-auto flex-1 text-xs text-gray-300">
+        <div class="p-3 bg-redchat-subtle border border-redchat/40 rounded-2xl text-red-100 flex items-start gap-2.5">
+          <i class="fa-solid fa-shield-halved text-redchat text-base mt-0.5"></i>
+          <div>
+            <p class="font-bold">Zero Calling Architecture & Full Realtime Messaging</p>
+            <p class="text-[11px] text-gray-300 mt-0.5">RED CHAT runs on an instant reactive state engine for immediate browser preview. Paste your real Firebase credentials below to enable cloud synchronization across real devices.</p>
+          </div>
+        </div>
+        <div>
+          <label class="block font-bold text-gray-200 uppercase tracking-wider text-[10px] mb-1">Firebase Web App Config (JSON)</label>
+          <textarea id="firebase-config-textarea" rows="7" placeholder='{
+  "apiKey": "AIzaSy...",
+  "authDomain": "your-app.firebaseapp.com",
+  "projectId": "your-app-id",
+  "storageBucket": "your-app.firebasestorage.app",
+  "messagingSenderId": "1234567890",
+  "appId": "1:1234567890:web:abcdef"
+}' class="w-full bg-noir-900 border border-noir-700 rounded-2xl p-3 text-xs font-mono text-gray-100 focus:border-redchat outline-none"></textarea>
+        </div>
+        <div class="flex flex-wrap gap-2.5">
+          <button onclick="saveCustomFirebaseConfig()" class="flex-1 py-3 bg-redchat hover:bg-redchat-hover text-white font-bold rounded-xl shadow-red-glow transition">
+            Save & Connect Firebase
+          </button>
+          <button onclick="copyProductionSecurityRules()" class="px-4 py-3 bg-noir-800 hover:bg-noir-750 text-gray-200 font-semibold rounded-xl border border-noir-700 transition flex items-center gap-1.5">
+            <i class="fa-regular fa-copy text-redchat"></i> Copy Firestore & Storage Rules
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forward Message Selection Modal -->
+  <div id="forward-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="glass-card max-w-sm w-full rounded-2xl border border-redchat/40 shadow-red-glow overflow-hidden">
+      <div class="p-4 border-b border-noir-700 flex items-center justify-between bg-noir-900">
+        <h3 class="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-wider">
+          <i class="fa-solid fa-share text-redchat"></i> Forward Message
+        </h3>
+        <button onclick="closeForwardModal()" class="text-gray-400 hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="forward-chat-options" class="p-2 max-h-72 overflow-y-auto divide-y divide-noir-800">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Create New Group Modal -->
+  <div id="create-group-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="glass-card max-w-md w-full rounded-3xl border border-redchat/40 shadow-red-glow overflow-hidden">
+      <div class="p-4 border-b border-noir-700 flex items-center justify-between bg-noir-900">
+        <h3 class="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-wider">
+          <i class="fa-solid fa-users text-redchat"></i> Create New Group
+        </h3>
+        <button onclick="closeCreateGroupModal()" class="text-gray-400 hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form onsubmit="handleCreateGroupSubmit(event)" class="p-5 space-y-4">
+        <div>
+          <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">Group Name</label>
+          <input type="text" id="new-group-name" required placeholder="e.g. Design Mavericks, Core Team" class="w-full bg-noir-900 border border-noir-700 focus:border-redchat rounded-xl px-4 py-2.5 text-xs text-white outline-none">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">Group Photo (Optional)</label>
+          <input type="file" id="new-group-avatar" accept="image/*" class="w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-redchat file:text-white hover:file:bg-redchat-hover">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">Select Initial Members</label>
+          <div id="new-group-members-list" class="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-noir-900 rounded-xl border border-noir-700">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+        <button type="submit" class="w-full py-3 bg-redchat hover:bg-redchat-hover text-white text-xs font-bold rounded-xl shadow-red-glow transition">
+          Create Group Room
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create New 24H Status Modal -->
+  <div id="new-status-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="glass-card max-w-md w-full rounded-3xl border border-redchat/40 shadow-red-glow overflow-hidden">
+      <div class="p-4 border-b border-noir-700 flex items-center justify-between bg-noir-900">
+        <h3 class="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-wider">
+          <i class="fa-solid fa-circle-notch text-redchat"></i> Share Status Update (24 Hours)
+        </h3>
+        <button onclick="closeNewStatusModal()" class="text-gray-400 hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form onsubmit="handlePostStatusSubmit(event)" class="p-5 space-y-4">
+        <div>
+          <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">Status Media (Image or Video)</label>
+          <input type="file" id="status-media-input" accept="image/*,video/*" class="w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-redchat file:text-white hover:file:bg-redchat-hover">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">Caption / Thoughts</label>
+          <textarea id="status-caption-input" rows="3" placeholder="What's happening? Disappears automatically in 24 hours." class="w-full bg-noir-900 border border-noir-700 focus:border-redchat rounded-xl p-3 text-xs text-white outline-none"></textarea>
+        </div>
+        <button type="submit" class="w-full py-3 bg-redchat hover:bg-redchat-hover text-white text-xs font-bold rounded-xl shadow-red-glow transition">
+          Post Status
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== AUTHENTICATION SCREEN ==================== -->
+  <section id="auth-screen" class="relative min-h-screen w-full flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+    <!-- Red ambient light & particles canvas -->
+    <canvas id="auth-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-0"></canvas>
+    <div class="absolute -top-32 -left-32 w-96 h-96 bg-redchat/15 rounded-full blur-[140px] pointer-events-none aura-animate"></div>
+    <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-redchat/15 rounded-full blur-[160px] pointer-events-none aura-animate" style="animation-delay: 2s;"></div>
+
+    <div class="relative z-10 w-full max-w-md">
+      <!-- RED CHAT Brand Header -->
+      <div class="text-center mb-6">
+        <div class="inline-flex items-center gap-2 mb-2 px-3.5 py-1 rounded-full bg-redchat-subtle border border-redchat/30">
+          <span class="w-2 h-2 rounded-full bg-redchat animate-ping"></span>
+          <span class="text-[10px] font-extrabold tracking-widest uppercase text-redchat font-mono">Encrypted Red Core</span>
+        </div>
+        <h1 class="text-4xl sm:text-5xl font-black tracking-tight text-white flex items-center justify-center gap-1.5 select-none">
+          <span>RED</span><span class="text-redchat">CHAT</span>
+        </h1>
+        <p class="text-xs text-gray-400 font-medium mt-1">Private messaging, made simple.</p>
+      </div>
+
+      <!-- Auth Glass Card -->
+      <div class="glass-card rounded-3xl p-6 sm:p-8 shadow-subtle-card border border-redchat/30 shadow-red-glow relative">
+        <!-- Auth Mode Switcher -->
+        <div class="flex items-center bg-noir-900 rounded-2xl p-1 mb-6 border border-noir-700">
+          <button id="auth-tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2.5 text-xs font-bold rounded-xl transition bg-redchat text-white shadow-red-glow">
+            Sign In
+          </button>
+          <button id="auth-tab-signup" onclick="switchAuthTab('signup')" class="flex-1 py-2.5 text-xs font-semibold rounded-xl transition text-gray-400 hover:text-white">
+            Sign Up
+          </button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="form-login" onsubmit="handleLoginSubmit(event)" class="space-y-4">
+          <div>
+            <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1.5">Email or @Handle</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500 text-xs">
+                <i class="fa-solid fa-at text-redchat"></i>
+              </span>
+              <input type="text" id="login-account-id" required placeholder="user@domain.com or handle" class="w-full bg-noir-900 border border-noir-700 focus:border-redchat rounded-xl pl-9 pr-4 py-3 text-xs text-white outline-none transition">
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between items-center mb-1.5">
+              <label class="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Password</label>
+              <button type="button" onclick="triggerForgotPassword()" class="text-[10px] text-redchat hover:underline font-semibold">Forgot password?</button>
+            </div>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500 text-xs">
+                <i class="fa-solid fa-lock"></i>
+              </span>
+              <input type="password" id="login-account-password" required placeholder="••••••••" class="w-full bg-noir-900 border border-noir-700 focus:border-redchat rounded-xl pl-9 pr-10 py-3 text-xs text-white outline-none transition">
+              <button type="button" onclick="togglePasswordVisibility('login-account-password', this)" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-500 hover:text-gray-300">
+                <i class="fa-regular fa-eye text-xs"></i>
+              </button>
+            </div>
+          </div>
+          <button type="submit" id="btn-login-submit" class="w-full py-3.5 bg-redchat hover:bg-redchat-hover text-white text-xs font-bold rounded-xl transition shadow-red-glow flex items-center justify-center gap-2 mt-5">
+            <span>Enter Red Chat</span>
+            <i class="fa-solid fa-arrow-right text-[10px]"></i>
+          </button>
+        </form>
+
+        <!-- Sign Up Form -->
+        <form id="form-signup" onsubmit="handleSignupSubmit(event)" class="space-y-3 hidden">
+          <div>
+            <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">Display Name</label>
+            <input type="text" id="signup-name" required placeholder="e.g. Nagarjuna Reddy" class="w-full bg-noir-900 border border-noir-700 focus:border-redchat rounded-xl px-3.5 py-2.5 text-xs text-white outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">Unique @Handle</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-redchat font-mono text-xs">@</span>
+              <input type="text" id="signup-handle" required placeholder="nag123" pattern="[a-z0-9_]{3,20}" title="3-20 lowercase letters, numbers, or underscores" class="w-full bg-noir-900 border border-noir-700 focus:border-redchat rounded-xl pl-7 pr-3.5 py-2.5 text-xs text-white font-mono outline-none lowercase">
+            </div>
+            <p class="text-[9px] text-gray-400 mt-1">Friends message you using this unique handle (3-20 chars).</p>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">Email Address</label>
+            <input type="email" id="signup-email" required placeholder="you@example.com" class="w-full bg-noir-900 border border-noir-700 focus:border-redchat rounded-xl px-3.5 py-2.5 text-xs text-white outline-none">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">Password</label>
+              <input type="password" id="signup-password" minlength="6" required placeholder="••••••••" class="w-full bg-noir-900 border border-noir-700 focus:border-redchat rounded-xl px-3 py-2.5 text-xs text-white outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">Confirm</label>
+              <input type="password" id="signup-confirm-password" minlength="6" required placeholder="••••••••" class="w-full bg-noir-900 border border-noir-700 focus:border-redchat rounded-xl px-3 py-2.5 text-xs text-white outline-none">
+            </div>
+          </div>
+          <button type="submit" id="btn-signup-submit" class="w-full py-3.5 bg-redchat hover:bg-redchat-hover text-white text-xs font-bold rounded-xl transition shadow-red-glow flex items-center justify-center gap-2 mt-4">
+            <span>Create Account</span>
+            <i class="fa-solid fa-sparkles text-[10px]"></i>
+          </button>
+        </form>
+
+        <!-- Firebase Config Modal Trigger -->
+        <div class="mt-6 pt-4 border-t border-noir-800 text-center flex items-center justify-between text-[11px] text-gray-400">
+          <span>Private Messaging Architecture</span>
+          <button onclick="openFirebaseConfigModal()" class="text-redchat hover:underline flex items-center gap-1 font-bold">
+            <i class="fa-solid fa-gear text-[10px]"></i> Firebase Keys
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== MAIN APPLICATION SCREEN ==================== -->
+  <section id="app-screen" class="hidden h-screen w-full flex flex-col bg-noir-950 overflow-hidden">
+
+    <!-- Top Global Header -->
+    <header class="h-16 px-4 sm:px-6 bg-noir-900/95 border-b border-noir-800 flex items-center justify-between z-20 backdrop-blur-md">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-redchat-subtle border border-redchat flex items-center justify-center text-redchat shadow-red-glow">
+          <i class="fa-solid fa-shield-halved text-base"></i>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-1 select-none">
+            RED<span class="text-redchat">CHAT</span>
+          </h1>
+          <p id="app-connection-indicator" class="text-[9px] text-green-400 font-mono flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> Encrypted Core Active
+          </p>
+        </div>
+      </div>
+
+      <!-- Header Action Controls -->
+      <div class="flex items-center gap-2">
+        <button onclick="openFirebaseConfigModal()" class="p-2 sm:px-3 py-1.5 rounded-xl bg-noir-800 hover:bg-noir-750 text-gray-300 hover:text-white border border-noir-700 text-xs font-semibold flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-database text-redchat"></i>
+          <span class="hidden sm:inline">Firebase DB</span>
+        </button>
+
+        <button onclick="openNewStatusModal()" class="p-2 sm:px-3 py-1.5 rounded-xl bg-redchat-subtle hover:bg-redchat/20 text-redchat border border-redchat/40 text-xs font-semibold flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-plus-circle"></i>
+          <span class="hidden sm:inline">New Status</span>
+        </button>
+
+        <!-- Current User Avatar Profile Trigger -->
+        <button onclick="switchMainView('profile')" class="flex items-center gap-2 pl-2 pr-3 py-1 rounded-xl bg-noir-800 border border-noir-700 hover:border-redchat/60 transition">
+          <img id="nav-user-avatar" src="" alt="Avatar" class="w-7 h-7 rounded-lg object-cover border border-redchat">
+          <span id="nav-user-handle" class="text-xs font-mono font-bold text-white hidden md:inline">@handle</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <div class="flex-1 flex overflow-hidden">
+
+      <!-- Left Sidebar (Chats, 24h Status, Groups, Search) -->
+      <aside id="main-sidebar" class="w-full md:w-80 lg:w-96 flex-shrink-0 bg-noir-900 border-r border-noir-800 flex flex-col h-full">
+        <!-- Sidebar Navigation Buttons -->
+        <div class="flex items-center border-b border-noir-800 bg-noir-950 p-2 gap-1">
+          <button id="tab-btn-chats" onclick="switchSidebarCategory('chats')" class="flex-1 py-2 rounded-xl text-xs font-bold bg-redchat text-white transition flex items-center justify-center gap-1.5 shadow-red-glow">
+            <i class="fa-solid fa-message text-[11px]"></i> Chats
+          </button>
+          <button id="tab-btn-status" onclick="switchSidebarCategory('status')" class="flex-1 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-circle-notch text-[11px]"></i> Status
+          </button>
+          <button id="tab-btn-groups" onclick="switchSidebarCategory('groups')" class="flex-1 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-users text-[11px]"></i> Groups
+          </button>
+        </div>
+
+        <!-- Chat List Panel -->
+        <div id="panel-chats" class="flex-1 flex flex-col overflow-hidden">
+          <!-- Search Box -->
+          <div class="p-3 border-b border-noir-800 space-y-2 bg-noir-900/60">
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 text-xs">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </span>
+              <input type="text" id="handle-search-input" oninput="handleUserSearchInput(this.value)" placeholder="Search users by @handle or name..." class="w-full bg-noir-950 border border-noir-700 focus:border-redchat rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-gray-500 outline-none">
+            </div>
+            <!-- Search Results Dropdown -->
+            <div id="search-results-shelf" class="hidden max-h-48 overflow-y-auto bg-noir-950 rounded-xl border border-redchat/30 p-2 space-y-1">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+
+          <!-- Active Conversations Scroll Area -->
+          <div id="conversations-container" class="flex-1 overflow-y-auto divide-y divide-noir-800/40">
+            <!-- Dynamically populated conversations -->
+          </div>
+        </div>
+
+        <!-- Status Tab Panel -->
+        <div id="panel-status" class="flex-1 overflow-y-auto p-4 space-y-4 hidden">
+          <!-- Current User Status Card -->
+          <div class="p-3.5 bg-noir-850 rounded-2xl border border-noir-700 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="relative">
+                <img id="my-profile-status-avatar" src="" alt="My Avatar" class="w-12 h-12 rounded-full object-cover border-2 border-redchat">
+                <button onclick="openNewStatusModal()" class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-redchat text-white flex items-center justify-center text-[10px] shadow-red-glow">
+                  <i class="fa-solid fa-plus"></i>
+                </button>
+              </div>
+              <div>
+                <h4 class="text-xs font-bold text-white">My Status</h4>
+                <p id="my-status-hint" class="text-[10px] text-gray-400">Tap + to add 24h story</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Contacts Status Updates -->
+          <div>
+            <h5 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Recent Updates</h5>
+            <div id="recent-status-list" class="space-y-2">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Groups Tab Panel -->
+        <div id="panel-groups" class="flex-1 overflow-y-auto p-3 space-y-3 hidden">
+          <button onclick="openCreateGroupModal()" class="w-full py-2.5 px-3 bg-redchat-subtle hover:bg-redchat/20 text-redchat font-bold text-xs rounded-xl border border-redchat/40 flex items-center justify-center gap-2 transition">
+            <i class="fa-solid fa-plus"></i> Create New Group
+          </button>
+          <div id="groups-container" class="space-y-2">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Sidebar Bottom Footer -->
+        <div class="p-3 border-t border-noir-800 bg-noir-950 flex items-center justify-between">
+          <button onclick="switchMainView('profile')" class="flex items-center gap-2.5 text-left text-gray-300 hover:text-white transition">
+            <img id="sidebar-footer-avatar" src="" alt="Avatar" class="w-8 h-8 rounded-lg object-cover border border-noir-700">
+            <div>
+              <p id="sidebar-footer-name" class="text-xs font-bold text-white leading-tight">My Profile</p>
+              <p class="text-[10px] text-redchat font-mono">View & Edit</p>
+            </div>
+          </button>
+          <div class="flex items-center gap-1">
+            <button onclick="switchMainView('settings')" class="p-2 rounded-xl bg-noir-850 hover:bg-noir-800 text-gray-400 hover:text-white transition" title="Settings">
+              <i class="fa-solid fa-sliders text-xs"></i>
+            </button>
+            <button onclick="executeLogout()" class="p-2 rounded-xl bg-noir-850 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition" title="Logout">
+              <i class="fa-solid fa-power-off text-xs"></i>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Chat Area (Zero Audio/Video Calling Buttons) -->
+      <main id="chat-stage" class="flex-1 flex flex-col h-full bg-noir-950 relative hidden md:flex">
+
+        <!-- Active Conversation Header (Notice: ZERO Calling buttons) -->
+        <div id="active-chat-header" class="h-16 px-4 sm:px-6 bg-noir-900 border-b border-noir-800 flex items-center justify-between z-10">
+          <div class="flex items-center gap-3">
+            <button onclick="backToSidebarMobile()" class="md:hidden p-2 -ml-2 text-gray-400 hover:text-white">
+              <i class="fa-solid fa-arrow-left text-base"></i>
+            </button>
+            <div class="relative">
+              <img id="chat-header-avatar" src="" alt="Recipient" class="w-10 h-10 rounded-xl object-cover border border-redchat/40">
+              <div id="chat-header-online-indicator" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-noir-900 hidden"></div>
+            </div>
+            <div>
+              <h3 id="chat-header-title" class="text-sm font-bold text-white truncate max-w-[180px] sm:max-w-xs">Select a conversation</h3>
+              <p id="chat-header-status" class="text-[10px] text-gray-400 font-mono">Tap any contact or group to begin chatting</p>
+            </div>
+          </div>
+
+          <!-- Allowed Actions: Conversation Details & Member Roster (NO CALL BUTTONS) -->
+          <div class="flex items-center gap-2">
+            <button onclick="openActiveChatInfoModal()" class="p-2.5 rounded-xl bg-noir-800 hover:bg-noir-750 text-gray-300 hover:text-white border border-noir-700 transition" title="Conversation Info">
+              <i class="fa-solid fa-circle-info text-sm"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Messages Scroll View -->
+        <div id="messages-container" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5 relative">
+          <!-- Placeholder when empty -->
+          <div class="h-full flex flex-col items-center justify-center text-center p-6 text-gray-500">
+            <div class="w-16 h-16 rounded-2xl bg-noir-900 border border-noir-800 flex items-center justify-center text-redchat text-2xl mb-3 shadow-red-glow">
+              <i class="fa-regular fa-comments"></i>
+            </div>
+            <h4 class="text-sm font-bold text-white">No active conversation</h4>
+            <p class="text-xs text-gray-400 mt-1 max-w-xs">Pick a chat from the sidebar or search a friend by @handle to start real-time private messaging.</p>
+          </div>
+        </div>
+
+        <!-- Real-time Typing Status Strip -->
+        <div id="typing-status-bar" class="hidden px-6 py-1 bg-noir-900/80 border-t border-noir-800 text-[11px] text-redchat font-mono flex items-center gap-2">
+          <div class="flex gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-redchat animate-bounce"></span>
+            <span class="w-1.5 h-1.5 rounded-full bg-redchat animate-bounce" style="animation-delay: 0.15s"></span>
+            <span class="w-1.5 h-1.5 rounded-full bg-redchat animate-bounce" style="animation-delay: 0.3s"></span>
+          </div>
+          <span id="typing-user-label">typing...</span>
+        </div>
+
+        <!-- Reply Message Preview Drawer -->
+        <div id="reply-preview-drawer" class="hidden px-4 py-2.5 bg-noir-900 border-t border-redchat/40 flex items-center justify-between">
+          <div class="flex items-center gap-2.5 overflow-hidden">
+            <div class="w-1 h-8 bg-redchat rounded-full"></div>
+            <div class="text-xs truncate">
+              <p class="font-bold text-redchat text-[10px]" id="reply-target-author">Replying to</p>
+              <p class="text-gray-300 text-xs truncate" id="reply-target-snippet">Original message</p>
+            </div>
+          </div>
+          <button onclick="dismissReplyTarget()" class="p-1 text-gray-400 hover:text-white">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Media Attachment Preview Drawer -->
+        <div id="media-preview-drawer" class="hidden p-3 bg-noir-900 border-t border-noir-800 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div id="media-thumbnail-box" class="w-12 h-12 rounded-xl bg-noir-950 border border-redchat overflow-hidden flex items-center justify-center">
+              <!-- Rendered preview thumbnail -->
+            </div>
+            <div>
+              <p id="media-filename-label" class="text-xs font-bold text-white truncate max-w-xs">File.ext</p>
+              <p id="media-filesize-label" class="text-[10px] text-gray-400">0 KB</p>
+            </div>
+          </div>
+          <button onclick="dismissPendingMedia()" class="p-2 text-gray-400 hover:text-redchat transition">
+            <i class="fa-solid fa-trash-can text-sm"></i>
+          </button>
+        </div>
+
+        <!-- Interactive Emoji Picker Palette -->
+        <div id="emoji-picker-palette" class="hidden p-3 bg-noir-900 border-t border-noir-800 grid grid-cols-8 sm:grid-cols-10 gap-2 text-xl max-h-40 overflow-y-auto">
+          <!-- Populated dynamically -->
+        </div>
+
+        <!-- Message Composer Form -->
+        <div class="p-3 sm:p-4 bg-noir-900/90 border-t border-noir-800">
+          <form onsubmit="handleSendMessageSubmit(event)" class="flex items-end gap-2">
+            <!-- Emoji Button -->
+            <button type="button" onclick="toggleEmojiPalette()" class="p-3 rounded-xl bg-noir-800 hover:bg-noir-750 text-gray-300 hover:text-redchat border border-noir-700 transition" title="Add Emoji">
+              <i class="fa-regular fa-face-smile text-base"></i>
+            </button>
+
+            <!-- Media Attachment Menu -->
+            <div class="relative">
+              <button type="button" onclick="toggleAttachmentMenu()" class="p-3 rounded-xl bg-noir-800 hover:bg-noir-750 text-gray-300 hover:text-redchat border border-noir-700 transition" title="Attach Media">
+                <i class="fa-solid fa-paperclip text-base"></i>
+              </button>
+              <div id="attachment-menu-popover" class="hidden absolute bottom-14 left-0 w-44 bg-noir-900 border border-noir-700 rounded-2xl p-1.5 shadow-2xl space-y-1 z-30">
+                <button type="button" onclick="triggerFileInputChoice('image/*')" class="w-full p-2 text-left text-xs font-semibold text-gray-300 hover:text-white hover:bg-noir-800 rounded-xl flex items-center gap-2.5 transition">
+                  <i class="fa-regular fa-image text-redchat"></i> Photos
+                </button>
+                <button type="button" onclick="triggerFileInputChoice('video/*')" class="w-full p-2 text-left text-xs font-semibold text-gray-300 hover:text-white hover:bg-noir-800 rounded-xl flex items-center gap-2.5 transition">
+                  <i class="fa-solid fa-video text-redchat"></i> Videos
+                </button>
+                <button type="button" onclick="triggerFileInputChoice('*/*')" class="w-full p-2 text-left text-xs font-semibold text-gray-300 hover:text-white hover:bg-noir-800 rounded-xl flex items-center gap-2.5 transition">
+                  <i class="fa-regular fa-file text-redchat"></i> Documents
+                </button>
+              </div>
+            </div>
+            <input type="file" id="media-raw-input" class="hidden" onchange="handleRawFileSelected(event)">
+
+            <!-- Text Message Textarea with Enter-to-send support -->
+            <div class="flex-1 relative">
+              <textarea id="composer-textarea" rows="1" onkeydown="handleComposerKeydown(event)" oninput="handleComposerTypingInput(event)" placeholder="Type a message... (Enter to send, Shift+Enter for new line)" class="w-full bg-noir-950 border border-noir-700 focus:border-redchat focus:ring-1 focus:ring-redchat rounded-2xl px-4 py-3 text-xs sm:text-sm text-white placeholder-gray-500 outline-none resize-none max-h-32 transition"></textarea>
+            </div>
+
+            <!-- Send Action Button -->
+            <button type="submit" class="p-3 px-5 rounded-2xl bg-redchat hover:bg-redchat-hover text-white font-bold transition flex items-center justify-center gap-1.5 shadow-red-glow">
+              <span class="hidden sm:inline text-xs">Send</span>
+              <i class="fa-solid fa-paper-plane text-xs"></i>
+            </button>
+          </form>
+        </div>
+
+      </main>
+
+      <!-- Profile Screen Panel -->
+      <section id="panel-profile-view" class="hidden flex-1 flex flex-col h-full bg-noir-950 p-6 overflow-y-auto">
+        <div class="max-w-xl mx-auto w-full space-y-6">
+          <div class="flex items-center justify-between pb-4 border-b border-noir-800">
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-id-card text-redchat"></i> Profile Settings
+            </h2>
+            <button onclick="switchMainView('chat')" class="text-xs font-bold text-redchat hover:underline">Done</button>
+          </div>
+
+          <!-- Avatar Section -->
+          <div class="flex flex-col items-center">
+            <div class="relative group cursor-pointer" onclick="document.getElementById('profile-avatar-input').click()">
+              <img id="profile-edit-dp" src="" alt="Profile Picture" class="w-28 h-28 rounded-3xl object-cover border-2 border-redchat shadow-red-glow">
+              <div class="absolute inset-0 bg-black/70 rounded-3xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-xs font-bold text-white transition">
+                <i class="fa-solid fa-camera text-redchat text-base mb-1"></i> Upload Photo
+              </div>
+            </div>
+            <input type="file" id="profile-avatar-input" accept="image/*" class="hidden" onchange="handleProfilePhotoSelected(event)">
+            <button onclick="removeProfilePhotoToInitials()" class="text-[11px] text-gray-400 hover:text-redchat mt-2">Remove photo</button>
+          </div>
+
+          <!-- Profile Input Form -->
+          <div class="space-y-4">
+            <div>
+              <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">Display Name</label>
+              <input type="text" id="profile-edit-name" class="w-full bg-noir-900 border border-noir-700 focus:border-redchat rounded-xl px-4 py-2.5 text-xs text-white outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">Unique @Handle</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-redchat font-mono text-xs">@</span>
+                <input type="text" id="profile-edit-handle" class="w-full bg-noir-900 border border-noir-700 focus:border-redchat rounded-xl pl-8 pr-4 py-2.5 text-xs text-white font-mono outline-none lowercase">
+              </div>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">About / Status</label>
+              <input type="text" id="profile-edit-about" placeholder="Hey there! I am using RED CHAT." class="w-full bg-noir-900 border border-noir-700 focus:border-redchat rounded-xl px-4 py-2.5 text-xs text-white outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">Email (Read Only)</label>
+              <input type="text" id="profile-edit-email" disabled class="w-full bg-noir-900/50 border border-noir-800 rounded-xl px-4 py-2.5 text-xs text-gray-500 outline-none">
+            </div>
+            <button onclick="saveUserProfileChanges()" class="w-full py-3 bg-redchat hover:bg-redchat-hover text-white text-xs font-bold rounded-xl shadow-red-glow transition">
+              Save Profile Changes
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings Panel Screen -->
+      <section id="panel-settings-view" class="hidden flex-1 flex flex-col h-full bg-noir-950 p-6 overflow-y-auto">
+        <div class="max-w-xl mx-auto w-full space-y-6">
+          <div class="flex items-center justify-between pb-4 border-b border-noir-800">
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-sliders text-redchat"></i> Application Settings
+            </h2>
+            <button onclick="switchMainView('chat')" class="text-xs font-bold text-redchat hover:underline">Done</button>
+          </div>
+
+          <!-- Privacy Settings -->
+          <div class="glass-card rounded-2xl p-4 space-y-3">
+            <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <i class="fa-solid fa-lock text-redchat"></i> Privacy Controls
+            </h3>
+            <div class="flex items-center justify-between py-2 border-b border-noir-800 text-xs">
+              <span>Read Receipts (Blue / Red Checks)</span>
+              <input type="checkbox" id="setting-read-receipts" checked class="accent-redchat w-4 h-4">
+            </div>
+            <div class="flex items-center justify-between py-2 border-b border-noir-800 text-xs">
+              <span>Show Online / Presence Status</span>
+              <input type="checkbox" id="setting-online-presence" checked class="accent-redchat w-4 h-4">
+            </div>
+            <div class="flex items-center justify-between py-2 text-xs">
+              <span>Last Seen Visibility</span>
+              <select id="setting-lastseen-visibility" class="bg-noir-900 border border-noir-700 rounded-lg px-2 py-1 text-xs text-white">
+                <option value="everyone">Everyone</option>
+                <option value="contacts">Contacts Only</option>
+                <option value="nobody">Nobody</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Notifications Settings -->
+          <div class="glass-card rounded-2xl p-4 space-y-3">
+            <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <i class="fa-solid fa-bell text-redchat"></i> Notification Preferences
+            </h3>
+            <div class="flex items-center justify-between py-2 border-b border-noir-800 text-xs">
+              <span>Message Notifications</span>
+              <input type="checkbox" checked class="accent-redchat w-4 h-4">
+            </div>
+            <div class="flex items-center justify-between py-2 text-xs">
+              <span>Group Mentions</span>
+              <input type="checkbox" checked class="accent-redchat w-4 h-4">
+            </div>
+          </div>
+
+          <!-- Appearance & Brand -->
+          <div class="glass-card rounded-2xl p-4 space-y-3">
+            <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <i class="fa-solid fa-palette text-redchat"></i> Appearance
+            </h3>
+            <div class="flex items-center justify-between text-xs">
+              <span>Theme Identity</span>
+              <span class="px-2.5 py-1 bg-redchat-subtle text-redchat font-bold rounded-lg border border-redchat/30">RED + BLACK (Official)</span>
+            </div>
+          </div>
+
+          <!-- Firebase Config Trigger inside Settings -->
+          <div class="glass-card rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <p class="text-xs font-bold text-white">Firebase Cloud Storage & DB</p>
+              <p class="text-[10px] text-gray-400">Configure your live project credentials</p>
+            </div>
+            <button onclick="openFirebaseConfigModal()" class="px-3 py-1.5 rounded-xl bg-redchat hover:bg-redchat-hover text-white text-xs font-bold shadow-red-glow transition">
+              Manage Keys
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </section>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { 
+      getAuth, 
+      createUserWithEmailAndPassword, 
+      signInWithEmailAndPassword, 
+      signOut, 
+      sendPasswordResetEmail,
+      onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { 
+      getFirestore, 
+      doc, 
+      setDoc, 
+      getDoc, 
+      collection, 
+      onSnapshot, 
+      addDoc, 
+      updateDoc, 
+      deleteDoc, 
+      runTransaction 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { 
+      getStorage, 
+      ref, 
+      uploadBytesResumable, 
+      getDownloadURL 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+    // Default placeholder configuration
+    const DEFAULT_FIREBASE_CONFIG = {
+      apiKey: "AIzaSy_REPLACE_WITH_YOUR_FIREBASE_API_KEY",
+      authDomain: "redchat-project.firebaseapp.com",
+      projectId: "redchat-project",
+      storageBucket: "redchat-project.firebasestorage.app",
+      messagingSenderId: "1029384756",
+      appId: "1:1029384756:web:redchat987654321"
+    };
+
+    let activeFirebaseConfig = DEFAULT_FIREBASE_CONFIG;
+    const storedConfigStr = localStorage.getItem('redchat_live_firebase_config');
+    if (storedConfigStr) {
+      try { activeFirebaseConfig = JSON.parse(storedConfigStr); } catch (e) {}
+    }
+
+    let fbApp = null, fbAuth = null, fbDb = null, fbStorage = null;
+    let isLiveFirebase = false;
+
+    // Initialize Firebase if user supplied real keys
+    try {
+      if (activeFirebaseConfig.apiKey && !activeFirebaseConfig.apiKey.includes('REPLACE_WITH')) {
+        fbApp = initializeApp(activeFirebaseConfig);
+        fbAuth = getAuth(fbApp);
+        fbDb = getFirestore(fbApp);
+        fbStorage = getStorage(fbApp);
+        isLiveFirebase = true;
+      }
+    } catch(err) {
+      console.warn("Using instant local reactive store fallback:", err.message);
+    }
+
+    let currentUser = null;
+    let activeConversationId = null;
+    let activeConversationData = null;
+    let currentReplyMessage = null;
+    let pendingMediaPayload = null;
+    let forwardMessagePayload = null;
+    let typingDebounceTimer = null;
+    let statusStoryPlaybackTimer = null;
+
+    // Local Storage Mock Datastores for instantaneous standalone testing
+    let localUsers = JSON.parse(localStorage.getItem('redchat_db_users') || "[]");
+    let localChats = JSON.parse(localStorage.getItem('redchat_db_chats') || "[]");
+    let localMessages = JSON.parse(localStorage.getItem('redchat_db_messages') || "{}");
+    let localStatuses = JSON.parse(localStorage.getItem('redchat_db_statuses') || "[]");
+
+    // Pre-populate demo contacts for instant verification
+    if (localUsers.length === 0) {
+      localUsers = [
+        {
+          uid: "usr_nagarjuna",
+          displayName: "Nagarjuna Reddy",
+          handle: "nag123",
+          email: "nagarjuna@example.com",
+          photoURL: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+          about: "Software Engineer • Built with Red & Black 🔴",
+          online: true,
+          lastSeen: "Online"
+        },
+        {
+          uid: "usr_priya",
+          displayName: "Priya Sharma",
+          handle: "priya_s",
+          email: "priya@example.com",
+          photoURL: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+          about: "Capturing moments 📸",
+          online: true,
+          lastSeen: "Online"
+        }
+      ];
+      localStorage.setItem('redchat_db_users', JSON.stringify(localUsers));
+    }
+
+    function initAuthParticles() {
+      const canvas = document.getElementById('auth-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let w = canvas.width = window.innerWidth;
+      let h = canvas.height = window.innerHeight;
+
+      window.addEventListener('resize', () => {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+      });
+
+      const particles = [];
+      const particleCount = 45;
+      for (let i = 0; i < particleCount; i++) {
+        particles.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - 0.5) * 0.45,
+          vy: (Math.random() - 0.5) * 0.45,
+          radius: Math.random() * 2 + 1,
+          alpha: Math.random() * 0.5 + 0.2
+        });
+      }
+
+      function draw() {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, w, h);
+
+        // Connect near particles with crimson lines
+        for (let i = 0; i < particles.length; i++) {
+          for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 110) {
+              ctx.strokeStyle = `rgba(255, 23, 68, ${(1 - dist / 110) * 0.22})`;
+              ctx.lineWidth = 0.8;
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              ctx.stroke();
+            }
+          }
+        }
+
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0) p.x = w;
+          if (p.x > w) p.x = 0;
+          if (p.y < 0) p.y = h;
+          if (p.y > h) p.y = 0;
+
+          ctx.fillStyle = `rgba(255, 23, 68, ${p.alpha})`;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    window.showToast = function(msg, variant = 'info') {
+      const shelf = document.getElementById('toast-shelf');
+      const toast = document.createElement('div');
+      toast.className = 'pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl border text-xs font-semibold shadow-2xl transition duration-300 transform translate-x-4 opacity-0';
+
+      if (variant === 'success') {
+        toast.className += ' bg-noir-900 border-redchat text-white shadow-red-glow';
+        toast.innerHTML = `<i class="fa-solid fa-circle-check text-redchat text-sm"></i> <span>${escapeHtml(msg)}</span>`;
+      } else if (variant === 'error') {
+        toast.className += ' bg-noir-900 border-red-600 text-red-200';
+        toast.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-500 text-sm"></i> <span>${escapeHtml(msg)}</span>`;
+      } else {
+        toast.className += ' bg-noir-900 border-noir-700 text-gray-200';
+        toast.innerHTML = `<i class="fa-solid fa-circle-info text-redchat text-sm"></i> <span>${escapeHtml(msg)}</span>`;
+      }
+
+      shelf.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.remove('translate-x-4', 'opacity-0'));
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-x-4');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    };
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[m]);
+    }
+
+    window.switchAuthTab = function(mode) {
+      const tabLogin = document.getElementById('auth-tab-login');
+      const tabSignup = document.getElementById('auth-tab-signup');
+      const formLogin = document.getElementById('form-login');
+      const formSignup = document.getElementById('form-signup');
+
+      if (mode === 'login') {
+        tabLogin.className = "flex-1 py-2.5 text-xs font-bold rounded-xl transition bg-redchat text-white shadow-red-glow";
+        tabSignup.className = "flex-1 py-2.5 text-xs font-semibold rounded-xl transition text-gray-400 hover:text-white";
+        formLogin.classList.remove('hidden');
+        formSignup.classList.add('hidden');
+      } else {
+        tabSignup.className = "flex-1 py-2.5 text-xs font-bold rounded-xl transition bg-redchat text-white shadow-red-glow";
+        tabLogin.className = "flex-1 py-2.5 text-xs font-semibold rounded-xl transition text-gray-400 hover:text-white";
+        formSignup.classList.remove('hidden');
+        formLogin.classList.add('hidden');
+      }
+    };
+
+    window.togglePasswordVisibility = function(inputId, btn) {
+      const el = document.getElementById(inputId);
+      const icon = btn.querySelector('i');
+      if (el.type === 'password') {
+        el.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+      } else {
+        el.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+      }
+    };
+
+    window.handleLoginSubmit = async function(e) {
+      e.preventDefault();
+      const identifier = document.getElementById('login-account-id').value.trim();
+      const password = document.getElementById('login-account-password').value;
+
+      if (isLiveFirebase && fbAuth) {
+        try {
+          const cred = await signInWithEmailAndPassword(fbAuth, identifier, password);
+          const userDocSnap = await getDoc(doc(fbDb, "users", cred.user.uid));
+          if (userDocSnap.exists()) {
+            currentUser = userDocSnap.data();
+          } else {
+            currentUser = {
+              uid: cred.user.uid,
+              displayName: cred.user.displayName || "Member",
+              email: cred.user.email,
+              handle: "user_" + cred.user.uid.slice(0, 5),
+              photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=User&backgroundColor=ff1744`,
+              online: true,
+              lastSeen: "Online"
+            };
+          }
+          launchApplicationSession();
+          showToast(`Welcome back, @${currentUser.handle}!`, 'success');
+          return;
+        } catch(err) {
+          showToast(err.message, 'error');
+          return;
+        }
+      }
+
+      // Standalone Fallback Auth Flow
+      const cleanId = identifier.replace(/^@/, '').toLowerCase();
+      let matched = localUsers.find(u => u.email.toLowerCase() === cleanId || u.handle.toLowerCase() === cleanId);
+
+      if (!matched) {
+        matched = {
+          uid: "usr_" + Math.random().toString(36).substring(2, 9),
+          displayName: cleanId.charAt(0).toUpperCase() + cleanId.slice(1),
+          handle: cleanId,
+          email: `${cleanId}@redchat.io`,
+          photoURL: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80`,
+          about: "Hey! Using RED CHAT.",
+          online: true,
+          lastSeen: "Online"
+        };
+        localUsers.push(matched);
+        localStorage.setItem('redchat_db_users', JSON.stringify(localUsers));
+      }
+
+      currentUser = matched;
+      sessionStorage.setItem('redchat_active_session', JSON.stringify(currentUser));
+      launchApplicationSession();
+      showToast(`Logged into RED CHAT as @${currentUser.handle}!`, 'success');
+    };
+
+    window.handleSignupSubmit = async function(e) {
+      e.preventDefault();
+      const displayName = document.getElementById('signup-name').value.trim();
+      const handle = document.getElementById('signup-handle').value.trim().replace(/^@/, '').toLowerCase();
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      const confirmPass = document.getElementById('signup-confirm-password').value;
+
+      if (password !== confirmPass) {
+        showToast("Passwords do not match.", 'error');
+        return;
+      }
+
+      if (isLiveFirebase && fbAuth && fbDb) {
+        try {
+          const handleDoc = await getDoc(doc(fbDb, "handles", handle));
+          if (handleDoc.exists()) {
+            showToast(`@${handle} is already taken. Try another!`, 'error');
+            return;
+          }
+          const cred = await createUserWithEmailAndPassword(fbAuth, email, password);
+          const userData = {
+            uid: cred.user.uid,
+            displayName: displayName,
+            handle: handle,
+            email: email,
+            photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=ff1744`,
+            about: "Hey there! I am using RED CHAT.",
+            createdAt: new Date().toISOString(),
+            online: true,
+            lastSeen: "Online"
+          };
+          await runTransaction(fbDb, async (txn) => {
+            txn.set(doc(fbDb, "users", cred.user.uid), userData);
+            txn.set(doc(fbDb, "handles", handle), { uid: cred.user.uid });
+          });
+          currentUser = userData;
+          launchApplicationSession();
+          showToast(`Account @${handle} registered!`, 'success');
+          return;
+        } catch(err) {
+          showToast(err.message, 'error');
+          return;
+        }
+      }
+
+      // Standalone check
+      if (localUsers.some(u => u.handle.toLowerCase() === handle)) {
+        showToast(`Handle @${handle} is already taken!`, 'error');
+        return;
+      }
+
+      currentUser = {
+        uid: "usr_" + Date.now().toString(36),
+        displayName: displayName,
+        handle: handle,
+        email: email,
+        photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=ff1744`,
+        about: "Hey there! I am using RED CHAT.",
+        online: true,
+        lastSeen: "Online"
+      };
+      localUsers.push(currentUser);
+      localStorage.setItem('redchat_db_users', JSON.stringify(localUsers));
+      sessionStorage.setItem('redchat_active_session', JSON.stringify(currentUser));
+      launchApplicationSession();
+      showToast(`Welcome to RED CHAT, @${handle}!`, 'success');
+    };
+
+    window.triggerForgotPassword = function() {
+      const email = prompt("Enter your account email to receive a password reset link:");
+      if (!email) return;
+      if (isLiveFirebase && fbAuth) {
+        sendPasswordResetEmail(fbAuth, email)
+          .then(() => showToast("Password reset link dispatched!", 'success'))
+          .catch(e => showToast(e.message, 'error'));
+      } else {
+        showToast(`Simulation reset link dispatched to ${email}`, 'info');
+      }
+    };
+
+    window.executeLogout = function() {
+      if (isLiveFirebase && fbAuth) signOut(fbAuth);
+      currentUser = null;
+      activeConversationId = null;
+      sessionStorage.removeItem('redchat_active_session');
+      document.getElementById('app-screen').classList.add('hidden');
+      document.getElementById('auth-screen').classList.remove('hidden');
+      showToast("Logged out securely.", 'info');
+    };
+
+    function launchApplicationSession() {
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('app-screen').classList.remove('hidden');
+
+      document.getElementById('nav-user-avatar').src = currentUser.photoURL;
+      document.getElementById('nav-user-handle').innerText = `@${currentUser.handle}`;
+      document.getElementById('sidebar-footer-avatar').src = currentUser.photoURL;
+      document.getElementById('sidebar-footer-name').innerText = currentUser.displayName;
+      document.getElementById('my-profile-status-avatar').src = currentUser.photoURL;
+
+      populateEmojiPalette();
+      renderSidebarConversations();
+      renderSidebarStatuses();
+      renderSidebarGroups();
+
+      // Open first conversation on desktop viewport
+      if (window.innerWidth >= 768) {
+        const list = getMyConversationsList();
+        if (list.length > 0) selectConversationItem(list[0].id);
+      }
+    }
+
+    window.switchSidebarCategory = function(cat) {
+      const bChats = document.getElementById('tab-btn-chats');
+      const bStatus = document.getElementById('tab-btn-status');
+      const bGroups = document.getElementById('tab-btn-groups');
+      const pChats = document.getElementById('panel-chats');
+      const pStatus = document.getElementById('panel-status');
+      const pGroups = document.getElementById('panel-groups');
+
+      const activeStyle = "flex-1 py-2 rounded-xl text-xs font-bold bg-redchat text-white transition flex items-center justify-center gap-1.5 shadow-red-glow";
+      const idleStyle = "flex-1 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white transition flex items-center justify-center gap-1.5";
+
+      bChats.className = cat === 'chats' ? activeStyle : idleStyle;
+      bStatus.className = cat === 'status' ? activeStyle : idleStyle;
+      bGroups.className = cat === 'groups' ? activeStyle : idleStyle;
+
+      pChats.classList.toggle('hidden', cat !== 'chats');
+      pStatus.classList.toggle('hidden', cat !== 'status');
+      pGroups.classList.toggle('hidden', cat !== 'groups');
+    };
+
+    window.switchMainView = function(view) {
+      const stage = document.getElementById('chat-stage');
+      const profile = document.getElementById('panel-profile-view');
+      const settings = document.getElementById('panel-settings-view');
+
+      stage.classList.add('hidden');
+      profile.classList.add('hidden');
+      settings.classList.add('hidden');
+
+      if (view === 'profile') {
+        profile.classList.remove('hidden');
+        hydrateProfileEditorForm();
+      } else if (view === 'settings') {
+        settings.classList.remove('hidden');
+      } else {
+        stage.classList.remove('hidden');
+      }
+    };
+
+    window.handleUserSearchInput = function(query) {
+      const shelf = document.getElementById('search-results-shelf');
+      const clean = query.trim().replace(/^@/, '').toLowerCase();
+
+      if (!clean) {
+        shelf.classList.add('hidden');
+        shelf.innerHTML = '';
+        return;
+      }
+
+      const results = localUsers.filter(u => 
+        u.uid !== currentUser.uid && 
+        (u.handle.toLowerCase().includes(clean) || u.displayName.toLowerCase().includes(clean))
+      );
+
+      shelf.classList.remove('hidden');
+      if (results.length === 0) {
+        shelf.innerHTML = `<p class="text-[11px] text-gray-400 py-2 text-center">No users found matching "@${escapeHtml(clean)}"</p>`;
+        return;
+      }
+
+      shelf.innerHTML = results.map(u => `
+        <div onclick="initiatePrivateConversation('${u.uid}')" class="p-2 hover:bg-noir-850 rounded-xl cursor-pointer flex items-center justify-between border border-transparent hover:border-redchat/30 transition">
+          <div class="flex items-center gap-2">
+            <img src="${u.photoURL}" alt="Avatar" class="w-8 h-8 rounded-lg object-cover border border-redchat/40">
+            <div>
+              <p class="text-xs font-bold text-white">${escapeHtml(u.displayName)}</p>
+              <p class="text-[10px] text-redchat font-mono">@${escapeHtml(u.handle)}</p>
+            </div>
+          </div>
+          <span class="text-[10px] px-2 py-1 bg-redchat/20 text-redchat rounded-lg font-bold">Message</span>
+        </div>
+      `).join('');
+    };
+
+    window.initiatePrivateConversation = function(targetUid) {
+      document.getElementById('search-results-shelf').classList.add('hidden');
+      document.getElementById('handle-search-input').value = '';
+
+      let chat = localChats.find(c => 
+        c.type === 'private' && c.members.includes(currentUser.uid) && c.members.includes(targetUid)
+      );
+
+      if (!chat) {
+        chat = {
+          id: "chat_" + Date.now(),
+          type: "private",
+          members: [currentUser.uid, targetUid],
+          updatedAt: new Date().toISOString(),
+          lastMessage: "Conversation created",
+          lastMessageTime: new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
+        };
+        localChats.unshift(chat);
+        localStorage.setItem('redchat_db_chats', JSON.stringify(localChats));
+      }
+
+      renderSidebarConversations();
+      selectConversationItem(chat.id);
+    };
+
+    function getMyConversationsList() {
+      return localChats.filter(c => c.members && c.members.includes(currentUser.uid));
+    }
+
+    function renderSidebarConversations() {
+      const container = document.getElementById('conversations-container');
+      const list = getMyConversationsList();
+
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center text-gray-500">
+            <i class="fa-regular fa-comment-dots text-2xl text-redchat/60 mb-2"></i>
+            <p class="text-xs font-bold text-gray-300">No conversations yet</p>
+            <p class="text-[10px] text-gray-500 mt-1">Search an @handle above to start messaging!</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = list.map(c => {
+        const isGroup = c.type === 'group';
+        let title = c.name || "Chat";
+        let avatar = c.photoURL || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100";
+        let handleText = "Group";
+        let isOnline = false;
+
+        if (!isGroup) {
+          const otherId = c.members.find(m => m !== currentUser.uid);
+          const other = localUsers.find(u => u.uid === otherId) || { displayName: "User", handle: "user", photoURL: avatar, online: false };
+          title = other.displayName;
+          avatar = other.photoURL;
+          handleText = `@${other.handle}`;
+          isOnline = other.online;
+        }
+
+        const isActive = activeConversationId === c.id;
+
+        return `
+          <div onclick="selectConversationItem('${c.id}')" class="p-3 sm:p-3.5 flex items-center gap-3 cursor-pointer transition ${isActive ? 'bg-noir-800 border-l-4 border-redchat' : 'hover:bg-noir-850'}">
+            <div class="relative flex-shrink-0">
+              <img src="${avatar}" alt="Avatar" class="w-11 h-11 rounded-xl object-cover border border-noir-700">
+              ${isOnline ? '<div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-noir-900"></div>' : ''}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs font-bold text-white truncate">${escapeHtml(title)}</h4>
+                <span class="text-[10px] text-gray-400 font-mono">${c.lastMessageTime || ''}</span>
+              </div>
+              <div class="flex items-center justify-between mt-1">
+                <p class="text-[11px] text-gray-400 truncate">${escapeHtml(c.lastMessage || 'Say hello...')}</p>
+                <span class="text-[9px] text-redchat font-mono">${handleText}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.selectConversationItem = function(chatId) {
+      activeConversationId = chatId;
+      activeConversationData = localChats.find(c => c.id === chatId);
+      if (!activeConversationData) return;
+
+      // Mobile adaptive display switch
+      document.getElementById('chat-stage').classList.remove('hidden');
+      document.getElementById('main-sidebar').classList.add('hidden', 'md:flex');
+      document.getElementById('panel-profile-view').classList.add('hidden');
+      document.getElementById('panel-settings-view').classList.add('hidden');
+
+      const isGroup = activeConversationData.type === 'group';
+      let title = activeConversationData.name || "Group";
+      let avatar = activeConversationData.photoURL || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100";
+      let statusSubtitle = `${activeConversationData.members.length} members`;
+
+      if (!isGroup) {
+        const otherId = activeConversationData.members.find(m => m !== currentUser.uid);
+        const other = localUsers.find(u => u.uid === otherId) || { displayName: "User", handle: "user", photoURL: avatar, online: false, lastSeen: "Offline" };
+        title = other.displayName;
+        avatar = other.photoURL;
+        statusSubtitle = other.online ? "Online" : `Last seen ${other.lastSeen}`;
+        document.getElementById('chat-header-online-indicator').classList.toggle('hidden', !other.online);
+      } else {
+        document.getElementById('chat-header-online-indicator').classList.add('hidden');
+      }
+
+      document.getElementById('chat-header-title').innerText = title;
+      document.getElementById('chat-header-status').innerText = statusSubtitle;
+      document.getElementById('chat-header-avatar').src = avatar;
+
+      renderSidebarConversations();
+      renderConversationMessages();
+    };
+
+    window.backToSidebarMobile = function() {
+      document.getElementById('chat-stage').classList.add('hidden');
+      document.getElementById('main-sidebar').classList.remove('hidden');
+    };
+
+    function renderConversationMessages() {
+      const container = document.getElementById('messages-container');
+      container.innerHTML = '';
+
+      if (!activeConversationId) return;
+      const msgs = localMessages[activeConversationId] || [];
+
+      if (msgs.length === 0) {
+        container.innerHTML = `
+          <div class="h-full flex flex-col items-center justify-center text-center p-6 text-gray-500">
+            <div class="w-14 h-14 rounded-2xl bg-noir-900 border border-noir-800 flex items-center justify-center text-redchat text-xl mb-3">
+              <i class="fa-regular fa-paper-plane"></i>
+            </div>
+            <p class="text-xs font-bold text-gray-300">Start the conversation</p>
+            <p class="text-[10px] text-gray-500 mt-1">Send a text, photo, video, or attachment.</p>
+          </div>
+        `;
+        return;
+      }
+
+      msgs.forEach(m => {
+        const isMe = m.senderId === currentUser.uid;
+        const bubble = document.createElement('div');
+        bubble.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} group mb-1.5`;
+
+        let replyHtml = '';
+        if (m.replyTo) {
+          replyHtml = `
+            <div class="mb-1.5 p-2 rounded-xl bg-black/40 border-l-2 border-redchat text-[11px] opacity-90 truncate max-w-xs">
+              <span class="font-bold text-redchat text-[9px] block">${escapeHtml(m.replyTo.senderName)}</span>
+              <span class="text-gray-200">${escapeHtml(m.replyTo.text || 'Attachment')}</span>
+            </div>
+          `;
+        }
+
+        let mediaHtml = '';
+        if (m.type === 'image' && m.fileURL) {
+          mediaHtml = `
+            <div onclick="openMediaLightbox('${m.fileURL}', 'image')" class="mb-1.5 rounded-xl overflow-hidden cursor-pointer border border-black/40 shadow-lg max-w-sm">
+              <img src="${m.fileURL}" alt="Attached Image" class="max-h-64 w-full object-cover transition duration-200 hover:scale-[1.02]">
+            </div>
+          `;
+        } else if (m.type === 'video' && m.fileURL) {
+          mediaHtml = `
+            <div class="mb-1.5 rounded-xl overflow-hidden border border-black/40 shadow-lg max-w-sm">
+              <video src="${m.fileURL}" controls class="max-h-64 w-full rounded-xl bg-black"></video>
+            </div>
+          `;
+        } else if (m.type === 'file' && m.fileURL) {
+          mediaHtml = `
+            <a href="${m.fileURL}" download="${m.fileName || 'file'}" class="mb-1.5 p-3 rounded-xl bg-black/40 border border-noir-700 hover:border-redchat flex items-center gap-3 text-xs transition">
+              <i class="fa-solid fa-file-arrow-down text-redchat text-lg"></i>
+              <div class="overflow-hidden">
+                <p class="font-bold text-white truncate max-w-[150px]">${escapeHtml(m.fileName || 'Document')}</p>
+                <p class="text-[9px] text-gray-400 font-mono">${m.fileSize || 'Attachment'}</p>
+              </div>
+            </a>
+          `;
+        }
+
+        let textHtml = m.text ? `<p class="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-words">${escapeHtml(m.text)}</p>` : '';
+
+        // Reactions Rendering
+        let reactionsHtml = '';
+        if (m.reactions && Object.keys(m.reactions).length > 0) {
+          reactionsHtml = `
+            <div class="flex gap-1 mt-1 -mb-1 flex-wrap">
+              ${Object.entries(m.reactions).map(([emoji, count]) => `
+                <span onclick="toggleReactionOnMessage('${m.id}', '${emoji}')" class="px-2 py-0.5 rounded-full bg-noir-900 border border-redchat/30 text-[10px] text-white cursor-pointer hover:border-redchat">
+                  ${emoji} ${count}
+                </span>
+              `).join('')}
+            </div>
+          `;
+        }
+
+        // Status checkmarks
+        let statusTicks = '';
+        if (isMe) {
+          statusTicks = m.status === 'read' ? 
+            '<i class="fa-solid fa-check-double text-[9px] text-red-200"></i>' : 
+            '<i class="fa-solid fa-check text-[9px] text-white/70"></i>';
+        }
+
+        bubble.innerHTML = `
+          <div class="relative max-w-[85%] sm:max-w-[70%]">
+            <div class="${isMe ? 'chat-bubble-me' : 'chat-bubble-them'} px-3.5 py-2.5 rounded-2xl ${isMe ? 'rounded-tr-none' : 'rounded-tl-none'} shadow-md">
+              ${replyHtml}
+              ${mediaHtml}
+              ${textHtml}
+              <div class="flex items-center justify-end gap-1.5 mt-1 text-[9px] opacity-75 font-mono">
+                <span>${m.time || 'Now'}</span>
+                ${statusTicks}
+              </div>
+            </div>
+
+            <!-- Message Action Hover Bar -->
+            <div class="hidden group-hover:flex items-center gap-1.5 absolute -top-3 ${isMe ? 'right-2' : 'left-2'} bg-noir-900/90 border border-noir-700 px-2 py-0.5 rounded-xl shadow-lg z-10 backdrop-blur-md">
+              <button onclick="toggleReactionOnMessage('${m.id}', '❤️')" class="text-xs hover:scale-125 transition">❤️</button>
+              <button onclick="toggleReactionOnMessage('${m.id}', '😂')" class="text-xs hover:scale-125 transition">😂</button>
+              <button onclick="toggleReactionOnMessage('${m.id}', '🔥')" class="text-xs hover:scale-125 transition">🔥</button>
+              <button onclick="prepareReplyTarget('${m.id}')" class="text-[10px] text-gray-300 hover:text-redchat" title="Reply"><i class="fa-solid fa-reply"></i></button>
+              <button onclick="openForwardModalDialog('${m.id}')" class="text-[10px] text-gray-300 hover:text-redchat" title="Forward"><i class="fa-solid fa-share"></i></button>
+              ${isMe ? `<button onclick="deleteTargetMessage('${m.id}')" class="text-[10px] text-gray-400 hover:text-red-400" title="Delete"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+            </div>
+          </div>
+          ${reactionsHtml}
+        `;
+        container.appendChild(bubble);
+      });
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    window.handleComposerKeydown = function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessageSubmit(e);
+      }
+    };
+
+    window.handleComposerTypingInput = function(e) {
+      if (!activeConversationId) return;
+      clearTimeout(typingDebounceTimer);
+      typingDebounceTimer = setTimeout(() => {
+        // typing stopped
+      }, 1500);
+    };
+
+    window.triggerFileInputChoice = function(acceptFilter) {
+      const input = document.getElementById('media-raw-input');
+      input.accept = acceptFilter;
+      input.click();
+      document.getElementById('attachment-menu-popover').classList.add('hidden');
+    };
+
+    window.toggleAttachmentMenu = function() {
+      document.getElementById('attachment-menu-popover').classList.toggle('hidden');
+    };
+
+    window.handleRawFileSelected = function(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const sizeLabel = file.size > 1024 * 1024 ? 
+        (file.size / (1024 * 1024)).toFixed(1) + ' MB' : 
+        (file.size / 1024).toFixed(0) + ' KB';
+
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        pendingMediaPayload = {
+          fileURL: evt.target.result,
+          fileName: file.name,
+          fileSize: sizeLabel,
+          type: isImage ? 'image' : (isVideo ? 'video' : 'file')
+        };
+
+        const thumb = document.getElementById('media-thumbnail-box');
+        if (isImage) {
+          thumb.innerHTML = `<img src="${evt.target.result}" alt="Preview" class="w-full h-full object-cover">`;
+        } else if (isVideo) {
+          thumb.innerHTML = `<i class="fa-solid fa-video text-redchat text-base"></i>`;
+        } else {
+          thumb.innerHTML = `<i class="fa-solid fa-file text-redchat text-base"></i>`;
+        }
+
+        document.getElementById('media-filename-label').innerText = file.name;
+        document.getElementById('media-filesize-label').innerText = sizeLabel;
+        document.getElementById('media-preview-drawer').classList.remove('hidden');
+        showToast("Attachment ready to send!", 'info');
+      };
+      reader.readAsDataURL(file);
+    };
+
+    window.dismissPendingMedia = function() {
+      pendingMediaPayload = null;
+      document.getElementById('media-raw-input').value = '';
+      document.getElementById('media-preview-drawer').classList.add('hidden');
+    };
+
+    window.handleSendMessageSubmit = function(e) {
+      if (e) e.preventDefault();
+      if (!activeConversationId) {
+        showToast("Please choose a conversation first.", 'error');
+        return;
+      }
+
+      const input = document.getElementById('composer-textarea');
+      const text = input.value.trim();
+
+      if (!text && !pendingMediaPayload) return;
+
+      const timeStamp = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+
+      const newMsg = {
+        id: "msg_" + Date.now(),
+        senderId: currentUser.uid,
+        senderName: currentUser.displayName,
+        text: text,
+        type: pendingMediaPayload ? pendingMediaPayload.type : 'text',
+        fileURL: pendingMediaPayload ? pendingMediaPayload.fileURL : null,
+        fileName: pendingMediaPayload ? pendingMediaPayload.fileName : null,
+        fileSize: pendingMediaPayload ? pendingMediaPayload.fileSize : null,
+        time: timeStamp,
+        status: 'read',
+        replyTo: currentReplyMessage,
+        reactions: {}
+      };
+
+      if (!localMessages[activeConversationId]) localMessages[activeConversationId] = [];
+      localMessages[activeConversationId].push(newMsg);
+      localStorage.setItem('redchat_db_messages', JSON.stringify(localMessages));
+
+      // Update parent conversation summary
+      const cIdx = localChats.findIndex(c => c.id === activeConversationId);
+      if (cIdx !== -1) {
+        localChats[cIdx].lastMessage = text || (pendingMediaPayload ? `Shared ${pendingMediaPayload.type}` : 'Message');
+        localChats[cIdx].lastMessageTime = timeStamp;
+        localStorage.setItem('redchat_db_chats', JSON.stringify(localChats));
+      }
+
+      input.value = '';
+      dismissPendingMedia();
+      dismissReplyTarget();
+      renderConversationMessages();
+      renderSidebarConversations();
+
+      // Trigger automatic simulation reply if private chat with another user
+      if (activeConversationData && activeConversationData.type === 'private') {
+        const otherId = activeConversationData.members.find(m => m !== currentUser.uid);
+        triggerAutoSimulatedReply(activeConversationId, otherId);
+      }
+    };
+
+    function triggerAutoSimulatedReply(chatId, senderUid) {
+      const other = localUsers.find(u => u.uid === senderUid);
+      if (!other) return;
+
+      const indicator = document.getElementById('typing-status-bar');
+      document.getElementById('typing-user-label').innerText = `${other.displayName} is typing...`;
+      indicator.classList.remove('hidden');
+
+      setTimeout(() => {
+        indicator.classList.add('hidden');
+        if (activeConversationId !== chatId) return;
+
+        const replies = [
+          "Got your message! RED CHAT is lightning fast 🔥",
+          "Everything looks razor sharp here. Nice one!",
+          "Received! Private messaging with zero lag 👍",
+          "Loving the clean Red + Black theme."
+        ];
+        const randomText = replies[Math.floor(Math.random() * replies.length)];
+        const timeStamp = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+
+        const replyMsg = {
+          id: "msg_" + Date.now(),
+          senderId: senderUid,
+          senderName: other.displayName,
+          text: randomText,
+          type: 'text',
+          time: timeStamp,
+          status: 'read',
+          reactions: {}
+        };
+
+        if (!localMessages[chatId]) localMessages[chatId] = [];
+        localMessages[chatId].push(replyMsg);
+        localStorage.setItem('redchat_db_messages', JSON.stringify(localMessages));
+
+        const cIdx = localChats.findIndex(c => c.id === chatId);
+        if (cIdx !== -1) {
+          localChats[cIdx].lastMessage = randomText;
+          localChats[cIdx].lastMessageTime = timeStamp;
+          localStorage.setItem('redchat_db_chats', JSON.stringify(localChats));
+        }
+
+        renderConversationMessages();
+        renderSidebarConversations();
+      }, 1600);
+    }
+
+    window.toggleReactionOnMessage = function(msgId, emoji) {
+      const msgs = localMessages[activeConversationId] || [];
+      const target = msgs.find(m => m.id === msgId);
+      if (!target) return;
+
+      if (!target.reactions) target.reactions = {};
+      target.reactions[emoji] = (target.reactions[emoji] || 0) + 1;
+      localStorage.setItem('redchat_db_messages', JSON.stringify(localMessages));
+      renderConversationMessages();
+    };
+
+    window.prepareReplyTarget = function(msgId) {
+      const msgs = localMessages[activeConversationId] || [];
+      const target = msgs.find(m => m.id === msgId);
+      if (!target) return;
+
+      currentReplyMessage = {
+        messageId: target.id,
+        senderName: target.senderName || 'Contact',
+        text: target.text || (target.type ? `[${target.type}]` : '')
+      };
+
+      document.getElementById('reply-target-author').innerText = `Replying to ${currentReplyMessage.senderName}`;
+      document.getElementById('reply-target-snippet').innerText = currentReplyMessage.text;
+      document.getElementById('reply-preview-drawer').classList.remove('hidden');
+      document.getElementById('composer-textarea').focus();
+    };
+
+    window.dismissReplyTarget = function() {
+      currentReplyMessage = null;
+      document.getElementById('reply-preview-drawer').classList.add('hidden');
+    };
+
+    window.openForwardModalDialog = function(msgId) {
+      const msgs = localMessages[activeConversationId] || [];
+      forwardMessagePayload = msgs.find(m => m.id === msgId);
+      if (!forwardMessagePayload) return;
+
+      const shelf = document.getElementById('forward-chat-options');
+      const chats = getMyConversationsList();
+
+      shelf.innerHTML = chats.map(c => `
+        <div onclick="executeForwardToConversation('${c.id}')" class="p-2.5 flex items-center justify-between hover:bg-noir-850 cursor-pointer rounded-xl">
+          <span class="text-xs font-bold text-white">${escapeHtml(c.name || 'Conversation')}</span>
+          <span class="text-[10px] text-redchat font-semibold">Send</span>
+        </div>
+      `).join('');
+
+      document.getElementById('forward-modal').classList.remove('hidden');
+      document.getElementById('forward-modal').classList.add('flex');
+    };
+
+    window.closeForwardModal = function() {
+      document.getElementById('forward-modal').classList.add('hidden');
+      document.getElementById('forward-modal').classList.remove('flex');
+      forwardMessagePayload = null;
+    };
+
+    window.executeForwardToConversation = function(destChatId) {
+      if (!forwardMessagePayload) return;
+      const forwardedMsg = {
+        ...forwardMessagePayload,
+        id: "msg_" + Date.now(),
+        senderId: currentUser.uid,
+        senderName: currentUser.displayName,
+        time: new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }),
+        replyTo: null
+      };
+
+      if (!localMessages[destChatId]) localMessages[destChatId] = [];
+      localMessages[destChatId].push(forwardedMsg);
+      localStorage.setItem('redchat_db_messages', JSON.stringify(localMessages));
+      closeForwardModal();
+      showToast("Message forwarded!", 'success');
+      if (activeConversationId === destChatId) renderConversationMessages();
+    };
+
+    window.deleteTargetMessage = function(msgId) {
+      if (!activeConversationId) return;
+      localMessages[activeConversationId] = (localMessages[activeConversationId] || []).filter(m => m.id !== msgId);
+      localStorage.setItem('redchat_db_messages', JSON.stringify(localMessages));
+      renderConversationMessages();
+      showToast("Message deleted.", 'info');
+    };
+
+    function populateEmojiPalette() {
+      const container = document.getElementById('emoji-picker-palette');
+      const emojis = ['😀','😂','🔥','❤️','👍','😮','😢','🎉','🙏','✨','😎','🙌','🥳','💯','🚀','😍','👀','👏','💪','⚡','💥','🌟','🍕','☕','📸','🎬'];
+      container.innerHTML = emojis.map(em => `
+        <button type="button" onclick="insertEmojiIntoComposer('${em}')" class="hover:scale-125 transition text-center p-1">
+          ${em}
+        </button>
+      `).join('');
+    }
+
+    window.toggleEmojiPalette = function() {
+      document.getElementById('emoji-picker-palette').classList.toggle('hidden');
+    };
+
+    window.insertEmojiIntoComposer = function(emoji) {
+      const input = document.getElementById('composer-textarea');
+      input.value += emoji;
+      input.focus();
+    };
+
+    window.openNewStatusModal = function() {
+      document.getElementById('new-status-modal').classList.remove('hidden');
+      document.getElementById('new-status-modal').classList.add('flex');
+    };
+
+    window.closeNewStatusModal = function() {
+      document.getElementById('new-status-modal').classList.add('hidden');
+      document.getElementById('new-status-modal').classList.remove('flex');
+    };
+
+    window.handlePostStatusSubmit = function(e) {
+      e.preventDefault();
+      const mediaInput = document.getElementById('status-media-input');
+      const caption = document.getElementById('status-caption-input').value.trim();
+      const file = mediaInput.files && mediaInput.files[0];
+
+      if (!file && !caption) {
+        showToast("Please provide media or text for your status.", 'error');
+        return;
+      }
+
+      function commitStatus(mediaURL, mediaType) {
+        const item = {
+          id: "status_" + Date.now(),
+          uid: currentUser.uid,
+          authorName: currentUser.displayName,
+          authorAvatar: currentUser.photoURL,
+          caption: caption,
+          mediaURL: mediaURL,
+          mediaType: mediaType,
+          createdAt: Date.now(),
+          expiresAt: Date.now() + 24 * 60 * 60 * 1000
+        };
+
+        localStatuses.unshift(item);
+        localStorage.setItem('redchat_db_statuses', JSON.stringify(localStatuses));
+        closeNewStatusModal();
+        renderSidebarStatuses();
+        showToast("Status posted for 24 hours!", 'success');
+      }
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => commitStatus(reader.result, file.type.startsWith('video/') ? 'video' : 'image');
+        reader.readAsDataURL(file);
+      } else {
+        commitStatus(null, 'text');
+      }
+    };
+
+    function renderSidebarStatuses() {
+      const container = document.getElementById('recent-status-list');
+      const now = Date.now();
+      const active = localStatuses.filter(s => s.expiresAt > now);
+
+      if (active.length === 0) {
+        container.innerHTML = `<p class="text-xs text-gray-500 py-4 text-center">No active status updates</p>`;
+        return;
+      }
+
+      container.innerHTML = active.map(s => `
+        <div onclick="launchStatusViewer('${s.id}')" class="p-2.5 bg-noir-850 hover:bg-noir-800 rounded-2xl flex items-center justify-between cursor-pointer border border-noir-700 transition">
+          <div class="flex items-center gap-3">
+            <div class="status-ring rounded-full">
+              <img src="${s.authorAvatar}" alt="Avatar" class="w-10 h-10 rounded-full object-cover border-2 border-noir-950">
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white">${escapeHtml(s.authorName)}</p>
+              <p class="text-[10px] text-gray-400">Active status (24h)</p>
+            </div>
+          </div>
+          <i class="fa-solid fa-chevron-right text-xs text-redchat"></i>
+        </div>
+      `).join('');
+    }
+
+    window.launchStatusViewer = function(statusId) {
+      const s = localStatuses.find(item => item.id === statusId);
+      if (!s) return;
+
+      document.getElementById('status-author-name').innerText = s.authorName;
+      document.getElementById('status-author-avatar').src = s.authorAvatar;
+      document.getElementById('status-viewer-caption').innerText = s.caption || '';
+
+      const body = document.getElementById('status-viewer-body');
+      if (s.mediaType === 'image') {
+        body.innerHTML = `<img src="${s.mediaURL}" alt="Status" class="max-h-full max-w-full object-contain rounded-2xl">`;
+      } else if (s.mediaType === 'video') {
+        body.innerHTML = `<video src="${s.mediaURL}" autoplay class="max-h-full max-w-full rounded-2xl"></video>`;
+      } else {
+        body.innerHTML = `<p class="text-lg font-bold text-white text-center px-4 leading-relaxed">${escapeHtml(s.caption)}</p>`;
+      }
+
+      const modal = document.getElementById('status-viewer-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      const bar = document.getElementById('status-progress-bar');
+      bar.style.width = '0%';
+      requestAnimationFrame(() => bar.style.width = '100%');
+
+      clearTimeout(statusStoryPlaybackTimer);
+      statusStoryPlaybackTimer = setTimeout(() => closeStatusViewer(), 5000);
+    };
+
+    window.closeStatusViewer = function() {
+      clearTimeout(statusStoryPlaybackTimer);
+      const modal = document.getElementById('status-viewer-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    };
+
+    window.openCreateGroupModal = function() {
+      const container = document.getElementById('new-group-members-list');
+      container.innerHTML = localUsers.filter(u => u.uid !== currentUser.uid).map(u => `
+        <label class="flex items-center gap-2 p-1.5 hover:bg-noir-850 rounded-lg cursor-pointer">
+          <input type="checkbox" name="selected-group-member" value="${u.uid}" class="accent-redchat">
+          <img src="${u.photoURL}" alt="User" class="w-6 h-6 rounded-md object-cover">
+          <span class="text-xs text-gray-200">${escapeHtml(u.displayName)} (@${u.handle})</span>
+        </label>
+      `).join('');
+
+      document.getElementById('create-group-modal').classList.remove('hidden');
+      document.getElementById('create-group-modal').classList.add('flex');
+    };
+
+    window.closeCreateGroupModal = function() {
+      document.getElementById('create-group-modal').classList.add('hidden');
+      document.getElementById('create-group-modal').classList.remove('flex');
+    };
+
+    window.handleCreateGroupSubmit = function(e) {
+      e.preventDefault();
+      const groupName = document.getElementById('new-group-name').value.trim();
+      const checkboxes = document.querySelectorAll('input[name="selected-group-member"]:checked');
+      const memberUids = Array.from(checkboxes).map(c => c.value);
+      memberUids.push(currentUser.uid);
+
+      if (memberUids.length < 2) {
+        showToast("Select at least one contact to join the group.", 'error');
+        return;
+      }
+
+      const avatarInput = document.getElementById('new-group-avatar');
+      const file = avatarInput.files && avatarInput.files[0];
+
+      function finalizeNewGroup(photoURL) {
+        const newGroup = {
+          id: "group_" + Date.now(),
+          type: "group",
+          name: groupName,
+          photoURL: photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(groupName)}&backgroundColor=ff1744`,
+          members: memberUids,
+          admins: [currentUser.uid],
+          lastMessage: "Group created",
+          lastMessageTime: new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
+        };
+
+        localChats.unshift(newGroup);
+        localStorage.setItem('redchat_db_chats', JSON.stringify(localChats));
+        closeCreateGroupModal();
+        renderSidebarGroups();
+        renderSidebarConversations();
+        selectConversationItem(newGroup.id);
+        showToast(`Group "${groupName}" ready!`, 'success');
+      }
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => finalizeNewGroup(reader.result);
+        reader.readAsDataURL(file);
+      } else {
+        finalizeNewGroup(null);
+      }
+    };
+
+    function renderSidebarGroups() {
+      const container = document.getElementById('groups-container');
+      const groups = localChats.filter(c => c.type === 'group' && c.members.includes(currentUser.uid));
+
+      if (groups.length === 0) {
+        container.innerHTML = `<p class="text-xs text-gray-500 py-4 text-center">No active group rooms</p>`;
+        return;
+      }
+
+      container.innerHTML = groups.map(g => `
+        <div onclick="selectConversationItem('${g.id}')" class="p-3 bg-noir-850 hover:bg-noir-800 rounded-2xl flex items-center justify-between cursor-pointer border border-noir-700 transition">
+          <div class="flex items-center gap-3">
+            <img src="${g.photoURL}" alt="Group" class="w-10 h-10 rounded-xl object-cover border border-redchat/40">
+            <div>
+              <p class="text-xs font-bold text-white">${escapeHtml(g.name)}</p>
+              <p class="text-[10px] text-gray-400">${g.members.length} members</p>
+            </div>
+          </div>
+          <span class="text-[9px] bg-redchat-subtle text-redchat px-2 py-0.5 rounded-full font-bold">Group</span>
+        </div>
+      `).join('');
+    }
+
+    function hydrateProfileEditorForm() {
+      document.getElementById('profile-edit-name').value = currentUser.displayName;
+      document.getElementById('profile-edit-handle').value = currentUser.handle;
+      document.getElementById('profile-edit-about').value = currentUser.about || '';
+      document.getElementById('profile-edit-email').value = currentUser.email || '';
+      document.getElementById('profile-edit-dp').src = currentUser.photoURL;
+    }
+
+    window.handleProfilePhotoSelected = function(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        currentUser.photoURL = evt.target.result;
+        document.getElementById('profile-edit-dp').src = currentUser.photoURL;
+        document.getElementById('nav-user-avatar').src = currentUser.photoURL;
+        document.getElementById('sidebar-footer-avatar').src = currentUser.photoURL;
+        document.getElementById('my-profile-status-avatar').src = currentUser.photoURL;
+        saveUserProfileChanges();
+        showToast("Profile photo updated!", 'success');
+      };
+      reader.readAsDataURL(file);
+    };
+
+    window.removeProfilePhotoToInitials = function() {
+      currentUser.photoURL = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUser.displayName)}&backgroundColor=ff1744`;
+      document.getElementById('profile-edit-dp').src = currentUser.photoURL;
+      document.getElementById('nav-user-avatar').src = currentUser.photoURL;
+      document.getElementById('sidebar-footer-avatar').src = currentUser.photoURL;
+      saveUserProfileChanges();
+      showToast("Profile photo restored to initials.", 'info');
+    };
+
+    window.saveUserProfileChanges = function() {
+      const newName = document.getElementById('profile-edit-name').value.trim();
+      const newHandle = document.getElementById('profile-edit-handle').value.trim().replace(/^@/, '').toLowerCase();
+      const newAbout = document.getElementById('profile-edit-about').value.trim();
+
+      if (!newName || !newHandle) {
+        showToast("Display name and handle cannot be blank.", 'error');
+        return;
+      }
+
+      if (newHandle !== currentUser.handle && localUsers.some(u => u.uid !== currentUser.uid && u.handle.toLowerCase() === newHandle)) {
+        showToast(`Handle @${newHandle} is already reserved!`, 'error');
+        return;
+      }
+
+      currentUser.displayName = newName;
+      currentUser.handle = newHandle;
+      currentUser.about = newAbout;
+
+      const idx = localUsers.findIndex(u => u.uid === currentUser.uid);
+      if (idx !== -1) localUsers[idx] = currentUser;
+      localStorage.setItem('redchat_db_users', JSON.stringify(localUsers));
+      sessionStorage.setItem('redchat_active_session', JSON.stringify(currentUser));
+
+      document.getElementById('nav-user-handle').innerText = `@${currentUser.handle}`;
+      document.getElementById('sidebar-footer-name').innerText = currentUser.displayName;
+      showToast("Profile saved successfully.", 'success');
+    };
+
+    window.openMediaLightbox = function(fileUrl, type) {
+      const box = document.getElementById('media-lightbox');
+      const img = document.getElementById('lightbox-image');
+      const vid = document.getElementById('lightbox-video');
+      const downloadBtn = document.getElementById('lightbox-download-btn');
+
+      downloadBtn.href = fileUrl;
+      if (type === 'image') {
+        img.src = fileUrl;
+        img.classList.remove('hidden');
+        vid.classList.add('hidden');
+      } else {
+        vid.src = fileUrl;
+        vid.classList.remove('hidden');
+        img.classList.add('hidden');
+      }
+
+      box.classList.remove('hidden');
+      box.classList.add('flex');
+    };
+
+    window.closeMediaLightbox = function() {
+      const box = document.getElementById('media-lightbox');
+      const vid = document.getElementById('lightbox-video');
+      vid.pause();
+      vid.src = '';
+      box.classList.add('hidden');
+      box.classList.remove('flex');
+    };
+
+    window.openActiveChatInfoModal = function() {
+      if (!activeConversationData) return;
+      showToast(`Conversation ID: ${activeConversationData.id} • Type: ${activeConversationData.type.toUpperCase()}`, 'info');
+    };
+
+    window.openFirebaseConfigModal = function() {
+      document.getElementById('firebase-config-textarea').value = JSON.stringify(activeFirebaseConfig, null, 2);
+      document.getElementById('firebase-config-modal').classList.remove('hidden');
+      document.getElementById('firebase-config-modal').classList.add('flex');
+    };
+
+    window.closeFirebaseConfigModal = function() {
+      document.getElementById('firebase-config-modal').classList.add('hidden');
+      document.getElementById('firebase-config-modal').classList.remove('flex');
+    };
+
+    window.saveCustomFirebaseConfig = function() {
+      const val = document.getElementById('firebase-config-textarea').value.trim();
+      try {
+        const parsed = JSON.parse(val);
+        localStorage.setItem('redchat_live_firebase_config', JSON.stringify(parsed));
+        closeFirebaseConfigModal();
+        showToast("Firebase Config saved! Reloading application...", 'success');
+        setTimeout(() => window.location.reload(), 1200);
+      } catch(e) {
+        showToast("Invalid JSON syntax in Firebase config.", 'error');
+      }
+    };
+
+    window.copyProductionSecurityRules = function() {
+      const securityRules = `
+// ==================== FIRESTORE SECURITY RULES ====================
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /handles/{handle} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.uid;
+    }
+    match /chats/{chatId} {
+      allow read, write: if request.auth != null && request.auth.uid in resource.data.members;
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null;
+      }
+      match /typing/{uid} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    match /statuses/{statusId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == request.resource.data.uid;
+    }
+    match /groups/{groupId} {
+      allow read: if request.auth != null && request.auth.uid in resource.data.members;
+      allow write: if request.auth != null;
+    }
+  }
+}
+
+// ==================== FIREBASE STORAGE SECURITY RULES ====================
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /profiles/{userId}/avatar {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /chatUploads/{chatId}/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+    match /statuses/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /groups/{groupId}/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}`;
+      const textarea = document.createElement('textarea');
+      textarea.value = securityRules;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      showToast("Firestore & Storage Security Rules copied!", 'success');
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initAuthParticles();
+
+      // Check for active persistent session
+      const saved = sessionStorage.getItem('redchat_active_session');
+      if (saved) {
+        try {
+          currentUser = JSON.parse(saved);
+          launchApplicationSession();
+        } catch(e) {}
+      }
+    });
+  </script>
+</body>
+</html>
